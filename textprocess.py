@@ -2,16 +2,28 @@ import spacy
 from word2number_es import w2n
 import re
 import json
+from unidecode import unidecode
+import difflib
+from spellchecker import SpellChecker
 nlp = spacy.load("es_core_news_sm")
 stop_words = set(spacy.lang.es.STOP_WORDS)
+spell = SpellChecker(language='es') 
 
+comandos1 = ["agregar" , "buscar", "desactivar", "actualizar","mostrar","vender","vendi","anadir" ]
+comandos2= ["inca kola", "coca cola", "fanta", "san luis", "galleta", "rellenita","san mateo", "cielo", "gaseosa", "galleta" ]
+comandos3 = ["precio", "costo", "a", "salio"]
+comandos4 = ["cantidad", "compre" , "recibi", "producto"]
+comandos5= ["litro", "mililitro","gramo","kilo","kilogramo", "soles", "centimos", "sol"]
+comandos6 = ["docena", "decena", "centena", "media", "cuarto", "tercio"]
+
+dictionary = w2n.NUMBER_WORDS + comandos1 + comandos2+comandos3+comandos4+comandos5+comandos6
 
 def return_price(precio):
     if precio:
         precio_decimal = 0.0
         precio_tokens = precio.lower().split()
         for i in range(len(precio_tokens)):
-            if precio_tokens[i] == "soles" or precio_tokens[i] == "sol" or precio_tokens[i] == "solo":
+            if precio_tokens[i] == "soles" or precio_tokens[i] == "sol":
                 precio  = " ".join(precio_tokens[:i])
                 precio_decimal = w2n.word_to_num(precio)
                 try:
@@ -30,18 +42,12 @@ def return_price(precio):
 
 unidad_abreviacion = {
     "litro": "L",
-    "litros": "L",
-    "mililitro": "mL",
-    "mililitros": "mL",
+    "mililitro": "ml",
     "gramo": "g",
-    "gramos": "g",
     "kilo": "kg",
-    "kilos": "kg",
     "kilogramo": "kg",
-    "kilogramos": "kg",
 }
 
-diccionario_palabras = w2n.NUMBERS
 
 frases_especiales = {
     "medio litro": "500 mL",
@@ -59,15 +65,15 @@ def procesar_frase_especial(frase):
 def return_cantidad(cantidad):
 
     operaciones = {
-    "medio docena": lambda numero: numero * 6,
-    "docena medio": lambda numero: numero * 12 + 6,
+    "media docena": lambda numero: numero * 6,
+    "docena media": lambda numero: numero * 12 + 6,
     "docena": lambda numero: numero * 12,
     "decena": lambda numero: numero * 10,
     "decena media": lambda numero: numero * 10 + 5,
-    "medio decena": lambda numero: numero * 5,
+    "media decena": lambda numero: numero * 5,
     "cuarto": lambda numero: numero * 3,
     "tercio": lambda numero: numero * 4,
-    "medio centena": lambda numero: numero * 50,
+    "media centena": lambda numero: numero * 50,
     "centena": lambda numero: numero *100,
     }
     if cantidad:
@@ -91,6 +97,19 @@ def return_cantidad(cantidad):
             return resultado
         else:
             return numero
+
+def correcion(texto):
+  textob = unidecode(texto)
+  textoc = textob.split()
+  corrected = []
+  for i in range(len(textoc)):
+    corregido = difflib.get_close_matches(textoc[i], dictionary, n=1, cutoff=0.6)
+    if corregido:
+      corrected.append(corregido[0])
+    else:
+      corrected.append(textoc[i])
+  oracion_corregida = ' '.join(corrected)
+  return oracion_corregida
 
 def procesar_alias(descripcion):
   if descripcion:
@@ -122,27 +141,18 @@ def procesar_alias(descripcion):
     descripcion_procesada = " ".join([str(item) if isinstance(item, int) else item for item in totals])
     return descripcion_procesada
 
-def corregir_numero(frase):
-    # Utiliza una expresión regular para buscar "una" o "un" como palabras completas en la frase
-    frase_corregida = re.sub(r'\buna\b', 'uno', frase, flags=re.IGNORECASE)
-    frase_corregida = re.sub(r'\bun\b', 'uno', frase_corregida, flags=re.IGNORECASE)
-    return frase_corregida
 
 
 categorias_palabras_clave = {
-    "Agregar": ["agregar"],
-    "Buscar": ["buscar"],
-    "Desactivar": ["desactivar"],
-    "Actualizar": ["actualizar"],
-    "Mostrar": ["mostrar"],
-    "Vender": ["vender"],    
-    "Producto": ["inca", "coca", "fanta", "san", "galleta", "rellenita","san", "agua", "gaseosa", "galleta"],
+    "Comando": ["agregar" , "buscar", "desactivar", "actualizar","mostrar","vender","vendi","anadir" ]   ,
+    "Producto": ["inca", "coca","fanta", "san", "galleta", "rellenita","san", "agua", "gaseosa", "galleta","agua", "cielo"],
     "Precio": ["precio", "costo", "a", "salio"],
-    "Cantidad": ["cantidad", "compre" , "recibi"]
+    "Cantidad": ["cantidad", "compre" , "recibi", "vendi"]
 }
 
 def recibirjson(texto):
 
+  #texto = correcion(texto)
   doc = nlp(texto)
 
   comando = ""
@@ -152,6 +162,7 @@ def recibirjson(texto):
   current_key = None
 
   for token in doc:
+
       token_text = token.text.lower()
       for categoria, palabras_clave in categorias_palabras_clave.items():
           if token_text in palabras_clave:
@@ -159,21 +170,11 @@ def recibirjson(texto):
               break
 
       if current_key:
-          if current_key == "Agregar":
-              comando += " " + token.text
+          if current_key == "Comando":
+              comando = token.text
               cantidad += " " + token.text
-          elif current_key == "Buscar":
-              comando += " " + token.text
-          elif current_key == "Desactivar":
-              comando += " " + token.text
-          elif current_key == "Actualizar":
-              comando += " " + token.text
-          elif current_key == "Mostrar":
-              comando += " " + token.text
-          elif current_key == "Vender":
-              comando += " " + token.text
           elif current_key == "Producto":
-              nombre_producto += " " + token.text
+              nombre_producto += " " + token.text   
           elif current_key == "Precio":
               precio += " " + token.text
           elif current_key == "Cantidad":
@@ -183,14 +184,13 @@ def recibirjson(texto):
   #nombre_producto = " ".join([word for word in nombre_producto.split() if word not in categorias_palabras_clave["Producto"]])
   precio = " ".join([word for word in precio.split() if word not in categorias_palabras_clave["Precio"]])
   cantidad = " ".join([word for word in cantidad.split() if word not in categorias_palabras_clave["Cantidad"]])
-  precio = corregir_numero(precio)
-  cantidad = corregir_numero(cantidad)
-  comando = comando.strip() if comando else None
+  comando = comando if comando else None
   nombre_producto = procesar_alias(nombre_producto)
   precio = return_price(precio)
   cantidad = return_cantidad(cantidad)
 
   resultado = {
+        "texto": texto,
         "comando": comando,
         "nombre_producto": nombre_producto,
         "precio": precio,
