@@ -9,7 +9,7 @@ nlp = spacy.load("es_core_news_sm")
 stop_words = set(spacy.lang.es.STOP_WORDS)
 spell = SpellChecker(language='es') 
 
-comandos1 = ["agregar" , "buscar", "desactivar", "actualizar","mostrar","vender","vendi","anadir" ]
+comandos1 = ["agregar" , "buscar", "descargar", "actualizar","mostrar","vender","vendi","anadir","producto" ]
 comandos2= ["inca kola", "coca cola", "fanta", "san luis", "galleta", "rellenita","san mateo", "cielo", "gaseosa", "galleta" ]
 comandos3 = ["precio", "costo", "a", "salio"]
 comandos4 = ["cantidad", "compre" , "recibi", "producto"]
@@ -23,7 +23,7 @@ def return_price(precio):
         precio_decimal = 0.0
         precio_tokens = precio.lower().split()
         for i in range(len(precio_tokens)):
-            if precio_tokens[i] == "soles" or precio_tokens[i] == "sol":
+            if precio_tokens[i] == "soles" or precio_tokens[i] == "sol" or precio_tokens[i] == "sols" or precio_tokens[i] == "solo":
                 precio  = " ".join(precio_tokens[:i])
                 precio_decimal = w2n.word_to_num(precio)
                 try:
@@ -63,7 +63,7 @@ def procesar_frase_especial(frase):
 
 
 def return_cantidad(cantidad):
-
+    cantidad = correcion(cantidad, w2n.NUMBER_WORDS)
     operaciones = {
     "media docena": lambda numero: numero * 6,
     "docena media": lambda numero: numero * 12 + 6,
@@ -98,12 +98,12 @@ def return_cantidad(cantidad):
         else:
             return numero
 
-def correcion(texto):
+def correcion(texto, lista):
   textob = unidecode(texto)
   textoc = textob.split()
   corrected = []
   for i in range(len(textoc)):
-    corregido = difflib.get_close_matches(textoc[i], dictionary, n=1, cutoff=0.6)
+    corregido = difflib.get_close_matches(textoc[i], lista, n=1, cutoff=0.6)
     if corregido:
       corrected.append(corregido[0])
     else:
@@ -112,12 +112,14 @@ def correcion(texto):
   return oracion_corregida
 
 def procesar_alias(descripcion):
+
   if descripcion:
     tokens = descripcion.lower().split()
     numeroescr = []
     numero = 0
     totals = []
     nombreproducto = []
+    real=[]
     for token in tokens:
         try:
             num = w2n.word_to_num(token)
@@ -125,8 +127,9 @@ def procesar_alias(descripcion):
 
         except ValueError:
             if token not in unidad_abreviacion:
-              token = token.capitalize()
-            if( len(numeroescr) > 0):
+              #token = token.capitalize()
+              nombreproducto.append(token)
+            elif( len(numeroescr) > 0):
               for i in range(len(numeroescr)):
                 numeroescr[i] = w2n.word_to_num(numeroescr[i])
                 numero += numeroescr[i]
@@ -138,13 +141,34 @@ def procesar_alias(descripcion):
 
             else:
                 totals.append(token)
-    descripcion_procesada = " ".join([str(item) if isinstance(item, int) else item for item in totals])
+    nombreproducto = " ".join(nombreproducto)
+    nombreproducto = difflib.get_close_matches(nombreproducto, comandos2, n=1,cutoff=0.6)
+    tokens = nombreproducto[0].lower().split()
+    for token in tokens:
+              token = token.capitalize()
+              real.append(token)
+    real.extend(totals)
+
+    descripcion_procesada = " ".join([str(item) if isinstance(item, int) else item for item in real])
     return descripcion_procesada
 
 
+def comandotoken(frase):
+   frase = correcion(frase , comandos1)
+   re = []
+   if frase:
+    tokens = frase.lower().split()
+
+    return tokens[0]
+
+def limpiar_texto(texto):
+    texto_sin_tildes = unidecode(texto)
+    texto_minusculas = texto_sin_tildes.lower()
+    return texto_minusculas
+
 
 categorias_palabras_clave = {
-    "Comando": ["agregar" , "buscar", "desactivar", "actualizar","mostrar","vender","vendi","anadir" ]   ,
+    "Comando": ["agregar" , "buscar", "desactivar", "actualizar","mostrar","vender","vendi","anadir","producto","descargar","enviar" ]   ,
     "Producto": ["inca", "coca","fanta", "san", "galleta", "rellenita","san", "agua", "gaseosa", "galleta","agua", "cielo"],
     "Precio": ["precio", "costo", "a", "salio"],
     "Cantidad": ["cantidad", "compre" , "recibi", "vendi"]
@@ -152,7 +176,7 @@ categorias_palabras_clave = {
 
 def recibirjson(texto):
 
-  #texto = correcion(texto)
+  texto = limpiar_texto(texto)
   doc = nlp(texto)
 
   comando = ""
@@ -164,6 +188,7 @@ def recibirjson(texto):
   for token in doc:
 
       token_text = token.text.lower()
+      token_text = comandotoken(token_text)
       for categoria, palabras_clave in categorias_palabras_clave.items():
           if token_text in palabras_clave:
               current_key = categoria
@@ -171,7 +196,7 @@ def recibirjson(texto):
 
       if current_key:
           if current_key == "Comando":
-              comando = token.text
+              comando += " " + token.text
               cantidad += " " + token.text
           elif current_key == "Producto":
               nombre_producto += " " + token.text   
@@ -184,7 +209,7 @@ def recibirjson(texto):
   #nombre_producto = " ".join([word for word in nombre_producto.split() if word not in categorias_palabras_clave["Producto"]])
   precio = " ".join([word for word in precio.split() if word not in categorias_palabras_clave["Precio"]])
   cantidad = " ".join([word for word in cantidad.split() if word not in categorias_palabras_clave["Cantidad"]])
-  comando = comando if comando else None
+  comando = comandotoken(comando)
   nombre_producto = procesar_alias(nombre_producto)
   precio = return_price(precio)
   cantidad = return_cantidad(cantidad)
