@@ -169,7 +169,7 @@ def limpiar_texto(texto):
 
 categorias_palabras_clave = {
     "Comando": ["agregar" , "buscar", "desactivar", "actualizar","mostrar","vender","vendi","anadir","producto","descargar","enviar" ]   ,
-    "Producto": ["inca", "coca","fanta", "san", "galleta", "rellenita","san", "agua", "gaseosa", "galleta","agua", "cielo"],
+    "Producto": ["inca", "coca","fanta", "san", "galleta", "rellenita","san", "agua", "gaseosa", "galleta","agua", "cielo","incacola"],
     "Precio": ["precio", "costo", "a", "salio"],
     "Cantidad": ["cantidad", "compre" , "recibi", "vendi"]
 }
