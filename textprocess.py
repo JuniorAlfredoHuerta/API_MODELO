@@ -7,14 +7,15 @@ import difflib
 from spellchecker import SpellChecker
 nlp = spacy.load("es_core_news_sm")
 stop_words = set(spacy.lang.es.STOP_WORDS)
-spell = SpellChecker(language='es') 
+spell = SpellChecker(language='es')
 
 comandos1 = ["agregar" , "buscar", "descargar", "actualizar","mostrar","vender","vendi","anadir","producto" ]
 comandos2= ["inca kola", "coca cola", "fanta", "san luis", "galleta", "rellenita","san mateo", "cielo", "gaseosa", "galleta" ]
 comandos3 = ["precio", "costo", "a", "salio"]
-comandos4 = ["cantidad", "compre" , "recibi", "producto"]
-comandos5= ["litro", "mililitro","gramo","kilo","kilogramo", "soles", "centimos", "sol"]
+comandos4 = ["cantidad", "compre" , "recibi", "producto","salio"]
+comandos5= ["litro", "mililitro","gramo","kilo","kilogramo", "soles", "centimos", "sol","de"]
 comandos6 = ["docena", "decena", "centena", "media", "cuarto", "tercio"]
+
 
 dictionary = w2n.NUMBER_WORDS + comandos1 + comandos2+comandos3+comandos4+comandos5+comandos6
 
@@ -59,7 +60,7 @@ def buscar_singular(palabra):
     return palabra_singular
 
 def procesar_frase_especial(frase):
-    return frases_especiales.get(frase, frase) 
+    return frases_especiales.get(frase, frase)
 
 
 def return_cantidad(cantidad):
@@ -112,7 +113,7 @@ def correcion(texto, lista):
   return oracion_corregida
 
 def procesar_alias(descripcion):
-
+  print(descripcion)
   if descripcion:
     tokens = descripcion.lower().split()
     numeroescr = []
@@ -141,8 +142,14 @@ def procesar_alias(descripcion):
 
             else:
                 totals.append(token)
+    print(nombreproducto)
     nombreproducto = " ".join(nombreproducto)
+    print(nombreproducto)
+    tokens = nombreproducto[0].lower().split()
+
     nombreproducto = difflib.get_close_matches(nombreproducto, comandos2, n=1,cutoff=0.6)
+    print(nombreproducto)
+
     tokens = nombreproducto[0].lower().split()
     for token in tokens:
               token = token.capitalize()
@@ -174,21 +181,107 @@ categorias_palabras_clave = {
     "Cantidad": ["cantidad", "compre" , "recibi", "vendi"]
 }
 
+def checkcomando( pre, a, doc, filtros):
+  word1 = ""
+  print(len(doc))
+  for l in range(a+1):
+    if pre + l < len(doc):
+      word1 += doc[pre + l]
+  word = correcion(word1, filtros)
+  print(word)
+  print(word , a)
+  if len(doc) >= a:
+    if word in filtros:
+      return word , a
+    else:
+      return checkcomando(pre, a + 1, doc, filtros)
+  else:
+    return "", 0
+
+
 def recibirjson(texto):
 
   texto = limpiar_texto(texto)
-  doc = nlp(texto)
 
+
+  doc2 = texto.split()
+  doc3 = texto.split()
+  docfinal = " "
+      #print("----------------------", doc2[i], "------------------")
+      #print("Comandos 1", correcion(doc2[i], comandos1))
+      #print("Comandos 2", correcion(doc2[i], comandos2))
+      #print("Comandos 3", correcion(doc2[i], comandos3))
+      #print("Comandos 4", correcion(doc2[i], comandos4))
+      #print("Comandos 5", correcion(doc2[i], comandos5))
+      #print("Comandos 6", correcion(doc2[i], comandos6))
+      #print("numeros", correcion(doc2[i],w2n.NUMBER_WORDS))
+      #print(i , doc2[i])
+  pre = 0
+  posi = 0
+  for i in range(8):
+    pos=0
+    if i == 0:
+      comandos = comandos1+comandos4
+    elif i == 1:
+      comandos = w2n.NUMBER_WORDS+comandos6
+    elif i == 2:
+      comandos = comandos2
+    elif i == 3:
+      comandos = comandos3
+    elif i == 4:
+      comandos = w2n.NUMBER_WORDS
+    elif i == 5:
+      comandos = comandos5
+    elif i == 6:
+      comandos = w2n.NUMBER_WORDS
+    elif i == 7:
+      comandos = comandos5
+
+
+    newcomando , pos= checkcomando(pre, pos, doc3, comandos)
+    doc3[pos] = newcomando
+    del doc3[:pos]
+
+    posi += pos +1
+
+
+    pre += 1
+    docfinal += newcomando + " "
+    if posi == len(doc2):
+      break
+        #print(doc2[i])
+        #print(doc2[i+1])
+#
+        #print("Comandos 1", correcion(doc2[i], comandos1+comandos4))
+        #a = correcion(doc2[i], comandos1)
+        #if a in comandos1+comandos4:
+        #  print("a la primera")
+        #  print(a)
+        #else:
+        #  print("segunda")
+        #  word = doc2[i]+doc2[i+1]
+        #  print(word)
+        #  print("Comandos 1", correcion(word, comandos1+comandos4))
+
+
+
+
+
+
+  print(texto)
+  print(docfinal)
   comando = ""
   nombre_producto = ""
   precio = ""
   cantidad = ""
   current_key = None
+  doc = nlp(docfinal)
 
   for token in doc:
 
       token_text = token.text.lower()
       token_text = comandotoken(token_text)
+
       for categoria, palabras_clave in categorias_palabras_clave.items():
           if token_text in palabras_clave:
               current_key = categoria
@@ -199,7 +292,7 @@ def recibirjson(texto):
               comando += " " + token.text
               cantidad += " " + token.text
           elif current_key == "Producto":
-              nombre_producto += " " + token.text   
+              nombre_producto += " " + token.text
           elif current_key == "Precio":
               precio += " " + token.text
           elif current_key == "Cantidad":
@@ -208,12 +301,21 @@ def recibirjson(texto):
 
   #nombre_producto = " ".join([word for word in nombre_producto.split() if word not in categorias_palabras_clave["Producto"]])
   precio = " ".join([word for word in precio.split() if word not in categorias_palabras_clave["Precio"]])
+  #print(precio)
   cantidad = " ".join([word for word in cantidad.split() if word not in categorias_palabras_clave["Cantidad"]])
-  comando = comandotoken(comando)
-  nombre_producto = procesar_alias(nombre_producto)
-  precio = return_price(precio)
-  cantidad = return_cantidad(cantidad)
+  #print(cantidad)
 
+  comando = comandotoken(comando)
+  #print(comando)
+
+  nombre_producto = procesar_alias(nombre_producto)
+  #print(nombre_producto)
+
+  precio = return_price(precio)
+  #print(precio)
+
+  cantidad = return_cantidad(cantidad)
+  #print(cantidad)
   resultado = {
         "texto": texto,
         "comando": comando,
@@ -221,10 +323,10 @@ def recibirjson(texto):
         "precio": precio,
         "cantidad": cantidad
    }
+  print(resultado)
 
   return resultado
 
-
 if __name__ == "__main__":
-    ejemplo_texto = "agregar doce coca cola de novecientos mililitros salio un sol ochenta "
+    ejemplo_texto = "ve der cin co"
     recibirjson(ejemplo_texto)
