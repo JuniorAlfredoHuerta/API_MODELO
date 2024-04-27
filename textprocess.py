@@ -165,7 +165,6 @@ def comandotoken(frase):
    re = []
    if frase:
     tokens = frase.lower().split()
-
     return tokens[0]
 
 def limpiar_texto(texto):
@@ -316,6 +315,10 @@ def recibirjson(texto):
 
   cantidad = return_cantidad(cantidad)
   #print(cantidad)
+
+  if comando == None:
+    comando = "None"
+    
   resultado = {
         "texto": texto,
         "comando": comando,
