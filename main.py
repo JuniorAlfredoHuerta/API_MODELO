@@ -8,10 +8,10 @@ import time
 
 
 app = Flask(__name__)
-CORS(app, resources={r"/transcribe": {"origins": "*"}})
+CORS(app, resources={r"/transcribe": {"origins": "http://localhost:3000"}})
 
 model = Wav2Vec2ForCTC.from_pretrained("jonatasgrosman/wav2vec2-large-xlsr-53-spanish")
-##model.load_state_dict(torch.load('./model.pth'))
+model.load_state_dict(torch.load('./model.pth'))
 processor = Wav2Vec2Processor.from_pretrained("jonatasgrosman/wav2vec2-large-xlsr-53-spanish")
 
 @app.route('/transcribe', methods=['POST', 'GET'])
