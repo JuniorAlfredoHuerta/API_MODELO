@@ -5,7 +5,6 @@ import json
 from unidecode import unidecode
 import difflib
 from spellchecker import SpellChecker
-nlp = spacy.load("es_core_news_sm")
 stop_words = set(spacy.lang.es.STOP_WORDS)
 spell = SpellChecker(language='es')
 
@@ -90,7 +89,7 @@ def return_cantidad(cantidad):
             except ValueError:
                 tokens_not_recog.append(token)
 
-        doc = nlp(" ".join([token for token in tokens_not_recog if token not in stop_words]))
+        doc = " ".join([token for token in tokens_not_recog if token not in stop_words])
         keyword = " ".join([token.lemma_.lower() for token in doc])
         if (numero == 0): numero = 1
         if keyword in operaciones:
