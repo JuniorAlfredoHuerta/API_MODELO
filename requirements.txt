@@ -9,7 +9,7 @@ transformers == 4.34.1
 torch == 2.1.0
 librosa == 0.10.1
 gunicorn == 22.0.0
-es-core-news-sm == 3.7.0
+es-core-news-sm == 3.0.0
 unicode == 2.9
 spacy-loggers == 1.0.5
 spacy-legacy == 3.0.12
