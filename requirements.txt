@@ -7,3 +7,4 @@ pyspellchecker  == 0.7.2
 transformers == 4.34.1
 torch == 2.1.0
 librosa == 0.10.1
+gunicorn == 22.0.0
