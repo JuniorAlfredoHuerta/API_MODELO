@@ -6,13 +6,48 @@ import soundfile as sf
 from textprocess import recibirjson
 from flask_cors import CORS  # Import CORS
 import time
-import os
+from datetime import datetime 
+import io
+
+
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
+
 
 app = Flask(__name__)
 CORS(app, resources={r"/transcribe": {"origins": "*"}})
 
 model = None
 processor = None
+
+def get_drive_service():
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    SERVICE_ACCOUNT_FILE = 'credentials.json'  # Reemplaza con la ruta a tu archivo de credenciales
+
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+
+    service = build('drive', 'v3', credentials=credentials)
+    return service
+
+
+def upload_to_drive(file_buffer, file_name):
+    drive_service = get_drive_service()
+
+    file_metadata = {
+        'name': file_name,
+        'parents': ['1VUSPr0foTTpTyA8kf2GUtni7Fqp9LgZm']  # Reemplaza con el ID de la carpeta en Google Drive
+    }
+    media = MediaIoBaseUpload(file_buffer, mimetype='audio/wav')
+
+    file = drive_service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id'
+    ).execute()
+
+    print(f"File ID: {file.get('id')}")
 
 def load_model():
     global model, processor
@@ -22,15 +57,18 @@ def load_model():
         processor = Wav2Vec2Processor.from_pretrained("jonatasgrosman/wav2vec2-large-xlsr-53-spanish")
 
 def save_audio(input_audio, transcription, sample_rate):
-    if not os.path.exists('audios'):
-        os.makedirs('audios')
-    
+   
     _, filename_suffix = recibirjson(transcription)
     
-    filename = ''.join(e for e in filename_suffix if e.isalnum() or e.isspace()).replace(" ", "_") + '.wav'
-    file_path = os.path.join('audios', filename)
+    current_date = datetime.now().strftime("%Y%m%d")
     
-    sf.write(file_path, input_audio, sample_rate)
+    filename = ''.join(e for e in filename_suffix if e.isalnum() or e.isspace()).replace(" ", "_") + f'_{current_date}.wav'
+    file_buffer = io.BytesIO()
+    sf.write(file_buffer, input_audio, sample_rate, format='wav')
+    file_buffer.seek(0)
+    
+    # Subir a Google Drive
+    upload_to_drive(file_buffer, filename)
 
 
 @app.route('/transcribe', methods=['POST'])
