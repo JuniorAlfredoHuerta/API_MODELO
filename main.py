@@ -8,11 +8,12 @@ from flask_cors import CORS  # Import CORS
 import time
 from datetime import datetime 
 import io
+import os
 
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
+from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 
 
 app = Flask(__name__)
@@ -53,7 +54,7 @@ def load_model():
     global model, processor
     if model is None:
         model = Wav2Vec2ForCTC.from_pretrained("jonatasgrosman/wav2vec2-large-xlsr-53-spanish")
-        model.load_state_dict(torch.load('./model.pth'))
+        model.load_state_dict(torch.load('./model.pth'), strict = False)
         processor = Wav2Vec2Processor.from_pretrained("jonatasgrosman/wav2vec2-large-xlsr-53-spanish")
 
 def save_audio(input_audio, transcription, sample_rate):
@@ -70,6 +71,19 @@ def save_audio(input_audio, transcription, sample_rate):
     # Subir a Google Drive
     upload_to_drive(file_buffer, filename)
 
+def download_file(file_id):
+    drive_service = get_drive_service()
+    
+    file_info = drive_service.files().get(fileId=file_id, fields='name').execute()
+    file_name = file_info.get('name')
+
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    destination = os.path.join(current_directory, file_name)
+
+    request = drive_service.files().get_media(fileId=file_id)
+    
+    with open(destination, 'wb') as f:
+        downloader = MediaIoBaseDownload(f, request)
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
@@ -94,4 +108,6 @@ def transcribe():
     return jsonify({"transcription": a})
 
 if __name__ == '__main__':
+    file_id= '1xT4PhklhkaDDVfld_08QTvZTNdM0sTF2'
+    download_file(file_id)
     app.run(debug=True)
