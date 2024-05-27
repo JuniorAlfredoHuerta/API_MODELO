@@ -108,6 +108,6 @@ def transcribe():
     return jsonify({"transcription": a})
 
 if __name__ == '__main__':
-    file_id= '1xT4PhklhkaDDVfld_08QTvZTNdM0sTF2'
+    file_id= '1uHWfcSbjckyu8DYLoEuXB4Gg6hYFWtaU'
     download_file(file_id)
     app.run(debug=True)
